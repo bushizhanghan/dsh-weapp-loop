@@ -1,6 +1,6 @@
 {
   "name": "@bushizhanghan/dsh-weapp-loop",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "WeChat Mini Program dev loop for DeepSeek-Harness: open the project, trigger preview, read compile errors, and push the QR code into the conversation — plus a right-sidebar panel. 小程序开发闭环：编译、预览、报错回灌，二维码直接贴进对话。",
   "type": "module",
   "main": "lib/index.js",
