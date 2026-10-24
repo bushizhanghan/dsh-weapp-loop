@@ -1,0 +1,4 @@
+# dsh bundle layer: mount the weapp-loop plugin (lib/index.js).
+- insert:
+    - id: weapp-loop
+      name: '@bushizhanghan/dsh-weapp-loop'

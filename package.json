@@ -1,0 +1,57 @@
+{
+  "name": "@bushizhanghan/dsh-weapp-loop",
+  "version": "0.1.0",
+  "description": "WeChat Mini Program dev loop for DeepSeek-Harness: open the project, trigger preview, read compile errors, and push the QR code into the conversation — plus a right-sidebar panel. 小程序开发闭环：编译、预览、报错回灌，二维码直接贴进对话。",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./engine": "./lib/engine.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "cordis.patch.yml",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "cordis",
+    "cordis-plugin",
+    "wechat",
+    "miniprogram",
+    "weapp",
+    "devtools",
+    "preview",
+    "compile",
+    "agent-tools"
+  ],
+  "author": "bushizhanghan",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bushizhanghan/dsh-weapp-loop.git"
+  },
+  "bugs": {
+    "url": "https://github.com/bushizhanghan/dsh-weapp-loop/issues"
+  },
+  "homepage": "https://github.com/bushizhanghan/dsh-weapp-loop#readme",
+  "engines": {
+    "node": ">=22"
+  },
+  "dsh": {
+    "client": {
+      "platform": "web"
+    },
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "scripts": {
+    "test": "node --test test/"
+  }
+}
