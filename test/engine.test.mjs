@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { ideRunning, knownProjects, parseErrors, projectSummary, readQrDataUrl, resolveCli, runCli, tempPaths } from '../lib/engine.js'
-import { mkdtempSync, writeFileSync, rmSync, mkdirSync } from 'node:fs'
+import { mkdtempSync, writeFileSync, rmSync, mkdirSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -78,36 +78,76 @@ test('parseErrors tolerates empty input', () => {
   assert.deepEqual(raw, [])
 })
 
-test('readQrDataUrl accepts data URL and bare base64', () => {
+test('readQrDataUrl only accepts real image bytes', () => {
   const dir = mkdtempSync(join(tmpdir(), 'weapp-qr-'))
   try {
+    // A PNG payload: magic bytes plus enough filler to clear the size floor.
+    const png = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47]), Buffer.alloc(200, 1)])
+    const base64 = png.toString('base64')
     const dataFile = join(dir, 'a.txt')
-    writeFileSync(dataFile, 'data:image/png;base64,AAAA')
-    assert.equal(readQrDataUrl(dataFile), 'data:image/png;base64,AAAA')
+    writeFileSync(dataFile, `data:image/png;base64,${base64}`)
+    assert.equal(readQrDataUrl(dataFile), `data:image/png;base64,${base64}`)
     const bareFile = join(dir, 'b.txt')
-    writeFileSync(bareFile, 'A'.repeat(200))
-    assert.equal(readQrDataUrl(bareFile), `data:image/png;base64,${'A'.repeat(200)}`)
+    writeFileSync(bareFile, base64)
+    assert.equal(readQrDataUrl(bareFile), `data:image/png;base64,${base64}`)
+    // The CLI writes its failures into the same file; those are not QR codes.
+    const failure = join(dir, 'c.txt')
+    writeFileSync(failure, 'Error: 项目未打开')
+    assert.equal(readQrDataUrl(failure), null)
+    const text = join(dir, 'd.txt')
+    writeFileSync(text, 'A'.repeat(400))
+    assert.equal(readQrDataUrl(text), null)
     assert.equal(readQrDataUrl(join(dir, 'missing.txt')), null)
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }
 })
 
-test('runCli honors the timeout and reports timedOut', async () => {
-  // `timeout` is not a real cmd builtin; use a command that blocks instead.
-  const result = await runCli('cmd.exe', ['/c', 'pause'], { timeoutMs: 800 })
-  assert.equal(result.timedOut, true)
+test('runCli quotes a cli path containing spaces', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'weapp space-'))
+  try {
+    const bat = join(dir, 'echo-args.bat')
+    writeFileSync(bat, '@echo off\r\necho ARG1=%1\r\necho ARG2=%2\r\n')
+    const result = await runCli(bat, ['one two', 'three'], { timeoutMs: 10_000 })
+    assert.equal(result.ok, true, result.stderr)
+    assert.match(result.stdout, /one two/)
+    assert.match(result.stdout, /three/)
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('runCli kills the whole process tree on timeout', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'weapp-slow-'))
+  try {
+    const stamp = join(dir, 'stamp.txt')
+    const bat = join(dir, 'slow.bat')
+    // ping is the portable sleep here; the stamp proves the bat kept running.
+    writeFileSync(bat, `@echo off\r\nping -n 4 127.0.0.1 >nul\r\necho done> "${stamp}"\r\n`)
+    const result = await runCli(bat, [], { timeoutMs: 500 })
+    assert.equal(result.timedOut, true)
+    await new Promise((r) => setTimeout(r, 3500))
+    assert.equal(existsSync(stamp), false, 'the bat must not survive the timeout')
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('runCli rejects arguments carrying shell metacharacters', async () => {
+  const result = await runCli('C:\\no\\such\\cli.bat', ['-d', 'x&echo PWNED'], { timeoutMs: 1000 })
   assert.equal(result.ok, false)
+  assert.match(result.stderr, /shell metacharacter/)
 })
 
-test('runCli returns output for a fast command', async () => {
-  const result = await runCli('cmd.exe', ['/c', 'echo', 'hello'], { timeoutMs: 5000 })
-  assert.equal(result.ok, true)
-  assert.match(result.stdout, /hello/)
-})
-
-test('tempPaths are unique per process', () => {
-  const p = tempPaths()
-  assert.notEqual(p.info, p.qr)
-  assert.ok(p.info.includes('weapp-loop-info'))
+test('tempPaths are unique per call', () => {
+  const a = tempPaths()
+  const b = tempPaths()
+  try {
+    assert.notEqual(a.info, b.info)
+    assert.notEqual(a.dir, b.dir)
+    assert.ok(existsSync(a.dir))
+  } finally {
+    rmSync(a.dir, { recursive: true, force: true })
+    rmSync(b.dir, { recursive: true, force: true })
+  }
 })

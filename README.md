@@ -54,6 +54,8 @@ agent: weapp_preview(project)
 1. **首次必须人工扫码登录**。DevTools 的登录态插不了手——`weapp_open` 会启动 IDE 并等你登录，未就绪时其他工具明确返回 `ide-not-ready`，不会假装预览成功。
 2. **编译报错解析是逆向的**。DevTools 控制台没有稳定的机器格式；解析不了的行会原样进 `raw` 字段，不丢信息，但也不假装结构化。
 3. **上传需显式确认**。`weapp_upload` 不带 `confirmed=true` 只会返回「将上传什么」的预览。
+4. **「已就绪」有期限**。只有一次 CLI 调用真的返回 0 之后才算就绪，且 5 分钟后自动失效——IDE 停在登录界面时不会被误判成就绪。
+5. **超时会杀掉整个进程树**。`cli.bat` 后面还挂着一个 node.exe，只杀 cmd.exe 会让真正的 CLI 多跑一分钟。
 
 ## 工作原理
 
@@ -70,7 +72,7 @@ host 半注册 `GET /dsh-weapp-loop/config` 与 `/health` 两条路由，右栏�
 ## 开发
 
 ```sh
-node --test test/                     # engine 单测（11 个）
+node --test                            # engine 单测（13 个）
 node test/integration.test.mjs        # 全链路集成测试（9 项，fake ctx + 真实引擎）
 ```
 
