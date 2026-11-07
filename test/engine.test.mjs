@@ -78,6 +78,20 @@ test('parseErrors tolerates empty input', () => {
   assert.deepEqual(raw, [])
 })
 
+test('parseErrors does not lose an error whose only error word is the prefix', () => {
+  // The kind must be read before the prefix is stripped: 编译异常 is the only
+  // error word in this line, so stripping first left an empty body and the
+  // caller was told the compile was clean.
+  const { errors, raw } = parseErrors('错误：编译异常')
+  assert.equal(errors.length, 1, `raw=${JSON.stringify(raw)}`)
+  assert.notEqual(errors[0].kind, 'info')
+  assert.equal(errors[0].message, '编译异常')
+
+  // A bracket body that is a word, not a path, must not become a file name.
+  const info = parseErrors('[ info ] 编译完成')
+  assert.equal(info.errors.length, 0, JSON.stringify(info.errors))
+})
+
 test('readQrDataUrl only accepts real image bytes', () => {
   const dir = mkdtempSync(join(tmpdir(), 'weapp-qr-'))
   try {
